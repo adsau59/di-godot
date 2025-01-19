@@ -1,5 +1,7 @@
 # DI: Dependency Injection Script for Godot Engine
 
+![definex_logo.png](definex_logo.png)
+
 This script provides a Dependency Injection (DI) system for the Godot Engine. It facilitates object creation, dependency management, and binding using various modes (singleton, instance, value, etc.). With this script, you can manage your dependencies more efficiently, especially for large-scale Godot projects.
 
 ---
