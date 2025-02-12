@@ -27,20 +27,7 @@ This script provides a Dependency Injection (DI) system for the Godot Engine. It
 
 ### 1. **Binding Dependencies**
 
-Use the `bind()` function to bind a class, scene, or value as a dependency.
-
-```gdscript
-# Example: Bind a class as a singleton
-DI.bind(MyClass, DI.As.SINGLETON)
-
-# Example: Bind a scene to be instantiated as needed
-DI.bind(MyScene, DI.As.SCENE_INSTANCE)
-
-# Example: Bind a value
-DI.bind("SomeValue", DI.As.VALUE)
-```
-
-You can also bind variables and interfaces:
+Use the `bind()` function to bind a class, scene, or value as a dependency. You can bind variables and interfaces:
 
 ```gdscript
 # Bind to a variable
@@ -52,23 +39,18 @@ DI.bind(MyClass, DI.As.INSTANCE).to_base(SomeInterface, MyEnum.MY_MAPPING)
 
 ### 2. **Providing the Scene Tree**
 
-After binding dependencies, call `provide_tree()` to inject dependencies into the scene tree.
+After binding dependencies, call `provide_tree()` to inject dependencies into the scene tree. Should be run from the root node of the main scene.
 
 ```gdscript
-# Example: Provide the scene tree for dependency injection
-DI.provide_tree(get_tree().root)
+# Example: Provide the main node for dependency injection
+DI.provide_tree(self)
 ```
 
 ### 3. **Injecting Dependencies**
 
-For nodes added dynamically, you can call `inject()` to inject dependencies (not recommended):
+Each node in the tree is inject when `provide_tree` is called, and as the nodes needs dependencies, those are created and inturn injected as soon as its created.
 
-```gdscript
-# Example: Inject dependencies into a dynamically added node
-DI.inject(new_node)
-```
-
-You can also access instances directly using the variable name, class, or mapping:
+To dynamically create nodes, you can do so using these methods, if a new nodes/objects are created, those are injected right after before returning them:
 
 ```gdscript
 # Get an instance by variable name
@@ -81,6 +63,15 @@ var my_instance = DI.get_with_class(MyClass)
 var mapped_instance = DI.get_mapped(SomeInterface, MyEnum.MY_MAPPING)
 ```
 
+NOT RECOMMENDED If you HAVE to create new objects without using above given methods, you can use `inject` method to inject dependencies.
+
+```gdscript
+# Example: Inject dependencies into a dynamically added node
+var new_node = my_packed_scene.instantiate()
+add_child(new_node)
+DI.inject(new_node)
+```
+
 ### 4. **Scene Parent Management**
 
 Set the default parent for scenes instantiated by the DI system:
@@ -89,6 +80,22 @@ Set the default parent for scenes instantiated by the DI system:
 # Set the default parent node
 DI.set_default_scene_parent(some_parent_node)
 ```
+
+### 5. Class to Packed Scene mapping
+
+Allows you to manage all packed scene in a seperate scene, so that you don't have to write logic in nodes just so that you can get the reference for the packed scene to create your new nodes.
+
+```gdscript
+@export var robot_scene: PackedScene
+var mapping = {
+    Robot: robot_scene 
+}
+
+func _ready() -> void:
+    DI.set_dep_class_scene_mapping(mapping)
+```
+
+This way DI will keep a cache of all the packed scene, and when ever it needs to create an instance of a node, it'll use the correct packed scene.
 
 ---
 
@@ -101,35 +108,34 @@ DI.set_default_scene_parent(some_parent_node)
 
 ## Example
 
-Here's a complete example of setting up and using the DI system:
+Please refer the example scene in the repository for a working example for how things work. But the most important class to look at is main.gd
 
+### main.gd
 ```gdscript
-# Setup Script
 extends Node
 
-func _ready():
+
+# idealy mapping dict should be in a different class
+@export var robot_scene: PackedScene
+@onready var mapping = {
+    Robot: robot_scene 
+}
+
+func _ready() -> void:
+    DI.set_dep_class_scene_mapping(mapping)
+    DI.set_default_scene_parent(self)
+
     # Bind a class as a singleton
-    DI.bind(PlayerManager, DI.As.SINGLETON)
+    DI.bind(GameManager, DI.As.SINGLETON).to_var("game_manager")
     
     # Bind a scene to be instantiated
-    DI.bind(PlayerScene, DI.As.SCENE_INSTANCE)
+    DI.bind(Robot, DI.As.SCENE_INSTANCE).to_base(Enemy, Enemy.Type.ROBOT)
     
     # Bind a variable
-    DI.bind(GameSettings, DI.As.VALUE).to_var("game_settings")
+    DI.bind($Player, DI.As.VALUE).to_var("player")
     
     # Provide the scene tree
-    DI.provide_tree(get_tree().root)
-```
-
-```gdscript
-# Player Script
-extends Node
-
-# Injected variable
-onready var game_settings = null
-
-func _injected():
-    print("Dependencies injected! Settings:", game_settings)
+    DI.provide_tree(self)
 ```
 
 ---
